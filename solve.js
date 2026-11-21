@@ -22,6 +22,7 @@ export function run(input) {
   let records = 0; // records emitted so far, the header record included
   let line = 1; // physical line the scan is on
   let recLine = 1; // physical line the record being read started on
+  let curRow = null; // the row the record being read belongs to, set per record
 
   // The row an error of the record being read belongs to: null for the header.
   function errRow() {
@@ -66,7 +67,7 @@ export function run(input) {
         parts.push(text.slice(seg, i - 2));
         return { value: parts.join(''), term: 2 };
       }
-      errors.push({ code: 'stray_cr', line: recLine, row: errRow() });
+      errors.push({ code: 'stray_cr', line: recLine, row: curRow });
       if (parts === null) parts = [];
       parts.push(text.slice(seg, i));
       i++;
@@ -111,6 +112,7 @@ export function run(input) {
 
   for (;;) {
     const rec = [];
+    curRow = errRow();
     let anyTouched = false;
     let term = 3;
     for (;;) {
@@ -131,7 +133,7 @@ export function run(input) {
           break;
         }
         if (close === -1) {
-          errors.push({ code: 'unterminated_quote', line: recLine, row: errRow() });
+          errors.push({ code: 'unterminated_quote', line: recLine, row: curRow });
           const r = unquotedField();
           value = r.value;
           touched = value.length > 0;
@@ -147,7 +149,7 @@ export function run(input) {
           touched = true;
           term = r.term;
           if (r.value.length > 0) {
-            errors.push({ code: 'quote_junk', line: recLine, row: errRow() });
+            errors.push({ code: 'quote_junk', line: recLine, row: curRow });
           }
         }
       } else {
@@ -169,12 +171,12 @@ export function run(input) {
         if (header) columns = rec;
         else rows.push(rec);
       } else if (rec.length < width) {
-        errors.push({ code: 'short_row', line: recLine, row: errRow(), fields: rec.length });
+        errors.push({ code: 'short_row', line: recLine, row: curRow, fields: rec.length });
         while (rec.length < width) rec.push('');
         rows.push(rec);
       } else if (rec.length > width) {
         const extra = rec.splice(width);
-        errors.push({ code: 'long_row', line: recLine, row: errRow(), extra });
+        errors.push({ code: 'long_row', line: recLine, row: curRow, extra });
         rows.push(rec);
       } else {
         rows.push(rec);
